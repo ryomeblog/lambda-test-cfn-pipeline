@@ -1,0 +1,2 @@
+# lambda-test-cfn-pipeline
+CodeCommitプッシュ時に自動でLambdaにデプロイするCloudFormationテンプレート
