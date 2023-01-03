@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  BuildArtifactBucketName:
+    Type: String
+    MinLength: 1
+    MaxLength: 34
+    AllowedPattern: '[0-9a-z]{1}[0-9a-z\-]{1,33}'
+  CodeCommitRepositoryName:
+    Type: String
+    MinLength: 1
+    MaxLength: 100
+    AllowedPattern: '[0-9a-z\-]{1,100}'
+  RoleNamePrefix:
+    Type: String
+    Default: "lambda-test"
+
+Resources:
+  # **********************************
+  # CodeCommit
+  # **********************************
+
+  CodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Sub "${CodeCommitRepositoryName}"
+
+  # **********************************
+  # S3
+  # **********************************
+
+  BuildArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${BuildArtifactBucketName}-${AWS::Region}-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 10
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # **********************************
+  # IAM
+  # **********************************
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${RoleNamePrefix}-${AWS::Region}-CodeBuildServiceRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+              - Effect: Allow
+                Resource:
+                  - "*"
+                Action:
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:PutObject"
+  PipelineExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${RoleNamePrefix}-${AWS::Region}-PipelineExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSCodeCommitFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "iam:PassRole"
+                  - "sns:Publish"
+                  - "lambda:InvokeFunction"
+                  - "lambda:ListFunctions"
+                  - "lambda:InvokeAsyc"
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:DescribeStacks"
+                  - "cloudformation:DeleteStack"
+                  - "cloudformation:UpdateStack"
+                  - "cloudformation:CreateChangeSet"
+                  - "cloudformation:ExecuteChangeSet"
+                  - "cloudformation:DeleteChangeSet"
+                  - "cloudformation:DescribeChangeSet"
+                  - "cloudformation:SetStackPolicy"
+                  - "cloudformation:SetStackPolicy"
+                  - "cloudformation:ValidateTemplate"
+                  - "codebuild:StartBuild"
+                  - "codebuild:BatchGetBuilds"
+                Effect: Allow
+                Resource: "*"
+  CloudFormationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${RoleNamePrefix}-${AWS::Region}-CloudFormationExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action:
+            - "sts:AssumeRole"
+          Effect: Allow
+          Principal:
+            Service:
+              - cloudformation.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AdministratorAccess"
+
+Outputs:
+  BuildArtifactBucketName:
+    Value: !Ref BuildArtifactBucket
+  CodeBuildServiceRoleArn:
+    Value: !GetAtt CodeBuildServiceRole.Arn
+  PipelineExecutionRoleArn:
+    Value: !GetAtt PipelineExecutionRole.Arn
+  CloudFormationExecutionRoleArn:
+    Value: !GetAtt CloudFormationExecutionRole.Arn

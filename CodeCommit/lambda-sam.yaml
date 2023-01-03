@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  PipelinePrefix:
+    Type: String
+    MinLength: 1
+  DeployEnvironmentName:
+    Type: String
+    Default: "development"
+    AllowedValues: [development, staging, production]
+  Loglevel:
+    Type: String
+    Default: "INFO"
+    AllowedValues: ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]
+  LogRetentionInDays:
+    Type: String
+    Default: "3"
+    AllowedValues: ["1", "3", "5", "7", "14", "30", "60", "90", "120", "150", "180", "365", "400", "545", "731", "1827", "2192", "2557", "2922", "3288", "3653"]
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Basic config."
+        Parameters:
+          - PipelinePrefix
+          - DeployEnvironmentName
+      - Label:
+          default: "App config."
+        Parameters:
+          - Loglevel
+
+Resources:
+  # **********************************
+  # IAM
+  # **********************************
+  LambdaTestRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Path: "/"
+      RoleName: !Sub "${PipelinePrefix}-${DeployEnvironmentName}-LambdaTestRole"
+
+  # **********************************
+  # Lambda
+  # **********************************
+  LambdaTest:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./lambda/LambdaTest/
+      Environment:
+        Variables:
+          LOGLEVEL: !Ref Loglevel
+      FunctionName: "LambdaTest"
+      FunctionUrlConfig: 
+        AuthType: NONE
+      Handler: app.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt LambdaTestRole.Arn
+      Runtime: python3.9
+      Timeout: 10

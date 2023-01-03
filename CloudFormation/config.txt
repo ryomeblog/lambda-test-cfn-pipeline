@@ -1,0 +1,9 @@
+CodeCommitRepositoryName=lambda-test-repository
+BucketName=lambda-test-bucket
+RoleNamePrefix=lambda-test
+SourceBranch=master
+DeployEnvironmentName=development
+PipelinePrefix=lambda-test-pipeline
+TemplateDeployFilename=lambda-deploy.yaml
+Loglevel=INFO
+LogRetentionInDays=3
