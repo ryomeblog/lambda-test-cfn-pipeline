@@ -1,7 +1,7 @@
 # はじめに
 このリポジトリは、Lambdaにデプロイを行うCI/CDパイプライン構築のテンプレートです。
 
-CodeCommitプッシュ時に自動でLambdaにデプロイするCloudFormationが格納されています。
+CodeCommitプッシュ時に自動でLambdaにデプロイするCodePipelineを作成するCloudFormationテンプレートが格納されています。
 
 ## インフラ構成
 以下、今回構築するインフラ構成図です。
